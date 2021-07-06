@@ -20,4 +20,4 @@ composer require dttecnologia/buscocomercio-core
 
 ## License & Copyright
 
-MIT, (c) 2018 buscocomercio.com
+MIT, (c) 2021 buscocomercio.com
