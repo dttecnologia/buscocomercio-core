@@ -1,0 +1,25 @@
+{
+    "name": "devuelving/devuelving-core",
+    "description": "devuelving core",
+    "type": "library",
+    "require": {
+        "laravel/framework": ">=5.5",
+        "dirape/token": ">=2.0",
+        "cviebrock/eloquent-sluggable": ">=4.5",
+        "spatie/laravel-json-api-paginate": ">=1.4",
+        "gabrielelana/byte-units": "^0.5.0"
+    },
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "DT Tecnologia",
+            "email": "admin@dttecnologia.com"
+        }
+    ],
+    "autoload": {
+        "psr-4": {
+            "devuelving\\core\\": "src/"
+        }
+    },
+    "minimum-stability": "stable"
+}
