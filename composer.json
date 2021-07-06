@@ -1,6 +1,6 @@
 {
-    "name": "devuelving/devuelving-core",
-    "description": "devuelving core",
+    "name": "dttecnologia/buscocomercio-core",
+    "description": "buscocomercio core",
     "type": "library",
     "require": {
         "laravel/framework": ">=5.5",
@@ -13,12 +13,12 @@
     "authors": [
         {
             "name": "DT Tecnologia",
-            "email": "admin@dttecnologia.com"
+            "email": "info@buscocomercio.com"
         }
     ],
     "autoload": {
         "psr-4": {
-            "devuelving\\core\\": "src/"
+            "dttecnologia\\core\\": "src/"
         }
     },
     "minimum-stability": "stable"
