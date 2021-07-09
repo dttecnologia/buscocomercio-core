@@ -18,7 +18,7 @@
     ],
     "autoload": {
         "psr-4": {
-            "buscocomercio\\core\\": "src/"
+            "Buscocomercio\\Core\\": "src/"
         }
     },
     "minimum-stability": "stable"
