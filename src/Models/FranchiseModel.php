@@ -1,6 +1,6 @@
 <?php
 
-namespace buscocomercio\core;
+namespace  Buscocomercio\Core;
 
 use Carbon\Carbon;
 use Buscocomercio\Core\CustomerModel;

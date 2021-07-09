@@ -1,6 +1,6 @@
 <?php
 
-namespace buscocomercio\core;
+namespace  Buscocomercio\Core;
 
 use Buscocomercio\Core\ProductModel;
 use Buscocomercio\Core\CategoryModel;

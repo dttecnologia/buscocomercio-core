@@ -1,6 +1,6 @@
 <?php
 
-namespace buscocomercio\core;
+namespace  Buscocomercio\Core;
 
 use App\Franchise;
 use Buscocomercio\Core\TaxModel;
