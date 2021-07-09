@@ -1,7 +1,7 @@
 {
-    "name": "devuelving/devuelving-core",
-    "description": "devuelving core",
-    "type": "library",
+    "name": "dttecnologia/buscocomercio-core",
+    "description": "BuscoComercio Core",
+    "type": "package",
     "require": {
         "laravel/framework": ">=5.5",
         "dirape/token": ">=2.0",
@@ -18,7 +18,7 @@
     ],
     "autoload": {
         "psr-4": {
-            "devuelving\\core\\": "src/"
+            "buscocomercio\\core\\": "src/"
         }
     },
     "minimum-stability": "stable"
