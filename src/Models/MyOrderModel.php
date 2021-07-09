@@ -3,15 +3,15 @@
 namespace buscocomercio\core;
 
 use App\Franchise;
-use buscocomercio\core\TaxModel;
-use buscocomercio\core\ProductModel;
-use buscocomercio\core\MyCountryModel;
-use buscocomercio\core\MyOrderDetailModel;
+use Buscocomercio\Core\TaxModel;
+use Buscocomercio\Core\ProductModel;
+use Buscocomercio\Core\MyCountryModel;
+use Buscocomercio\Core\MyOrderDetailModel;
 use Illuminate\Database\Eloquent\Model;
-use buscocomercio\core\MyShippingFeesModel;
-use buscocomercio\core\FranchiseCustomModel;
-use buscocomercio\core\MyOrderDiscountModel;
-use buscocomercio\core\MyPaymentMethodModel;
+use Buscocomercio\Core\MyShippingFeesModel;
+use Buscocomercio\Core\FranchiseCustomModel;
+use Buscocomercio\Core\MyOrderDiscountModel;
+use Buscocomercio\Core\MyPaymentMethodModel;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class MyOrderModel extends Model
@@ -172,8 +172,8 @@ class MyOrderModel extends Model
      */
     public function getPaymentMethod()
     {
-        if (empty($this->payment_method) || !MyPaymentMethodModel::where('franchise', Franchise::get('id'))->where('id', $this->payment_method)->exists()) {
-            $payment_method = MyPaymentMethodModel::where('franchise', Franchise::get('id'))->first();
+        if (empty($this->payment_method) || !MyPaymentMethodModel::where('franchise', Franchise::getFranchise()->id)->where('id', $this->payment_method)->exists()) {
+            $payment_method = MyPaymentMethodModel::where('franchise', Franchise::getFranchise()->id)->first();
             $this->payment_method = $payment_method->id;
             $this->save();
         }
@@ -226,7 +226,7 @@ class MyOrderModel extends Model
     {
         if (!empty($this->address_country)) {
             $total = 0;
-            $country = MyCountryModel::where('franchise', Franchise::get('id'))->where('code', $this->address_country)->first();
+            $country = MyCountryModel::where('franchise', Franchise::getFranchise()->id)->where('code', $this->address_country)->first();
             $shippingFee = MyShippingFeesModel::find($country->shipping_fee);
             $total = $this->getShippingPrice($shippingFee, $this->weight);
             if ($this->hasDropshipping()) {

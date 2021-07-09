@@ -2,7 +2,7 @@
 
 namespace buscocomercio\core;
 
-use buscocomercio\core\ProductModel;
+use Buscocomercio\Core\ProductModel;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -52,5 +52,17 @@ class MyOrderDetailModel extends Model
     public function getProduct()
     {
         return ProductModel::find($this->product);
+    }
+
+    /**
+     * Función para obtener los detalles de la variación
+     *
+     * @since 3.0.0
+     * @author Eduard Puigdemunt <eduard@devuelving.com>
+     * @return Product
+     */
+    public function getVariation()
+    {
+        return ProductVariationModel::find($this->variation);
     }
 }

@@ -2,14 +2,14 @@
 
 namespace buscocomercio\core;
 
-use buscocomercio\core\TaxModel;
-use buscocomercio\core\RegionModel;
-use buscocomercio\core\CountryModel;
-use buscocomercio\core\IncidentsModel;
-use buscocomercio\core\OrderDetailModel;
-use buscocomercio\core\ShippingFeeModel;
-use buscocomercio\core\OrderDiscountModel;
-use buscocomercio\core\PaymentMethodModel;
+use Buscocomercio\Core\TaxModel;
+use Buscocomercio\Core\RegionModel;
+use Buscocomercio\Core\CountryModel;
+use Buscocomercio\Core\IncidentsModel;
+use Buscocomercio\Core\OrderDetailModel;
+use Buscocomercio\Core\ShippingFeeModel;
+use Buscocomercio\Core\OrderDiscountModel;
+use Buscocomercio\Core\PaymentMethodModel;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -207,7 +207,7 @@ class OrderModel extends Model
     public function getPaymentCost()
     {
         $paymentMethod = $this->getPaymentMethod();
-        return number_format(($this->getSubtotal() * ($paymentMethod->porcentual / 100)) + $paymentMethod->fixed, 2, '.', '');    
+        return number_format(($this->getSubtotal() * ($paymentMethod->porcentual / 100)) + $paymentMethod->fixed, 2, '.', '');
     }
 
     /**

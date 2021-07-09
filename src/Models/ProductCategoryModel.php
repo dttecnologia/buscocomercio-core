@@ -2,8 +2,8 @@
 
 namespace buscocomercio\core;
 
-use buscocomercio\core\ProductModel;
-use buscocomercio\core\CategoryModel;
+use Buscocomercio\Core\ProductModel;
+use Buscocomercio\Core\CategoryModel;
 use Illuminate\Database\Eloquent\Model;
 
 class ProductCategoryModel extends Model

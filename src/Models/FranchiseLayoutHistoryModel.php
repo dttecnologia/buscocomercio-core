@@ -3,7 +3,7 @@
 namespace buscocomercio\core;
 
 use Illuminate\Database\Eloquent\Model;
-use buscocomercio\core\FranchiseLayoutModel;
+use Buscocomercio\Core\FranchiseLayoutModel;
 
 class FranchiseLayoutHistoryModel extends Model
 {

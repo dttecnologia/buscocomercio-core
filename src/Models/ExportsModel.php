@@ -2,8 +2,8 @@
 
 namespace buscocomercio\core;
 
-use buscocomercio\core\TaxModel;
-use buscocomercio\core\CategoryModel;
+use Buscocomercio\Core\TaxModel;
+use Buscocomercio\Core\CategoryModel;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 

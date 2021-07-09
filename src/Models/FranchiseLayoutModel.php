@@ -4,7 +4,7 @@ namespace buscocomercio\core;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use buscocomercio\core\FranchiseLayoutHistoryModel;
+use Buscocomercio\Core\FranchiseLayoutHistoryModel;
 
 class FranchiseLayoutModel extends Model
 {

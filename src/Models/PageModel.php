@@ -2,7 +2,7 @@
 
 namespace buscocomercio\core;
 
-use buscocomercio\core\FranchiseModel;
+use Buscocomercio\Core\FranchiseModel;
 use Illuminate\Database\Eloquent\Model;
 use Cviebrock\EloquentSluggable\Sluggable;
 

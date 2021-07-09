@@ -1,22 +1,22 @@
 <?php
 
-namespace buscocomercio\core;
+namespace Buscocomercio\Core;
 
 use Carbon\Carbon;
-use buscocomercio\core\TaxModel;
-use buscocomercio\core\BrandModel;
-use buscocomercio\core\ProductCustom;
-use buscocomercio\core\ProviderModel;
+use Buscocomercio\Core\TaxModel;
+use Buscocomercio\Core\BrandModel;
+use Buscocomercio\Core\ProductCustom;
+use Buscocomercio\Core\ProviderModel;
 use Illuminate\Support\Facades\DB;
-use buscocomercio\core\FranchiseModel;
-use buscocomercio\core\OrderDetailModel;
-use buscocomercio\core\ProductStockModel;
-use buscocomercio\core\ProductCustomModel;
+use Buscocomercio\Core\FranchiseModel;
+use Buscocomercio\Core\OrderDetailModel;
+use Buscocomercio\Core\ProductStockModel;
+use Buscocomercio\Core\ProductCustomModel;
 use Illuminate\Database\Eloquent\Model;
-use buscocomercio\core\DiscountTargetsModel;
-use buscocomercio\core\FranchiseCustomModel;
-use buscocomercio\core\ProductCategoryModel;
-use buscocomercio\core\ProductProviderModel;
+use Buscocomercio\Core\DiscountTargetsModel;
+use Buscocomercio\Core\FranchiseCustomModel;
+use Buscocomercio\Core\ProductCategoryModel;
+use Buscocomercio\Core\ProductProviderModel;
 use Cviebrock\EloquentSluggable\Sluggable;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -76,28 +76,28 @@ class ProductModel extends Model
      */
     public function brands()
     {
-        return $this->hasOne('buscocomercio\core\BrandModel', 'id', 'brand');
+        return $this->hasOne('Buscocomercio\Core\BrandModel', 'id', 'brand');
     }
     /**
      * Relationship product custom hasOne
      */
     public function productCustoms()
     {
-        return $this->hasMany('buscocomercio\core\ProductCustomModel', 'product', 'id');
+        return $this->hasMany('Buscocomercio\Core\ProductCustomModel', 'product', 'id');
     }
     /**
      * Relationship product provider hasOne
      */
     public function productProvider()
     {
-        return $this->hasMany('buscocomercio\core\ProductProviderModel', 'product', 'id');
+        return $this->hasMany('Buscocomercio\Core\ProductProviderModel', 'product', 'id');
     }
     /**
      * Relationship product image hasOne
      */
     public function productImage()
     {
-        return $this->hasMany('buscocomercio\core\ProductImageModel', 'product', 'id');
+        return $this->hasMany('Buscocomercio\Core\ProductImageModel', 'product', 'id');
     }
 
     public function getUnitNameAttribute()
@@ -114,12 +114,19 @@ class ProductModel extends Model
                 break;
         }
     }
+    /**
+     * Relationship product image hasOne
+     */
+    public function productVariation()
+    {
+        return $this->hasMany('Buscocomercio\Core\ProductVariationModel', 'product', 'id');
+    }
 
     /**
      * The "booting" method of the model.
      *
      * @return void
-     * @author Aaron <soporte@buscocomercio.com>
+     * @author Aaron <aaron@devuelving.com>
      */
     public static function boot()
     {
@@ -167,10 +174,10 @@ class ProductModel extends Model
      * Actualiza los precios del producto en la tabla de productos
      *
      * @since 3.0.0
-     * @author Aaron <soporte@buscocomercio.com>
+     * @author Aaron <aaron@devuelving.com>
      * @return void
      */
-    public function updatePrice()
+    public function updatePrice($variation = null)
     {
         if ($this->franchise === null) {
             // Obtenemos la regla del precio establecida
@@ -180,29 +187,53 @@ class ProductModel extends Model
                 $rule = 'desc';
             }
             // Obtenemos el product provider
-            $productProvider = $this->getProductProvider();
+            $productProvider = $this->getProductProvider(false, $variation);
             // Obtenemos el proveedor del producto
-            $provider = $productProvider->getProvider();
+            $provider = $productProvider->getProvider(false, $variation);
             // Obtenemos el precio de coste y le sumamos el margen de beneficio del proveedor
             $costPrice = $productProvider->cost_price + ($productProvider->cost_price * ($provider->profit_margin / 100));
             if ($provider->id == 5 || $provider->id == 6) {
                 // Obtenemos el precio recomendado y le restamos el 10% que es el precio minimo de venta
-                $default_price = $this->getRecommendedPrice() / 1.10;
+                $default_price = $this->getRecommendedPrice($variation) / 1.10;
             } else {
                 // Obtenemos el precio de coste y le sumamos el beneficio del franquiciado por defecto
                 $default_price = ($costPrice + ($productProvider->cost_price * ($provider->franchise_profit_margin / 100))) * ((TaxModel::find($this->tax)->value / 100) + 1);
             }
             // Actualizamos los precios de los productos
-            $product = ProductModel::find($this->id);
+            if ($variation != null) {
+                $product = ProductVariationModel::find($variation);
+                $product->price = $default_price;
+            } else {
+                $product = ProductModel::find($this->id);
+                $product->default_price = $default_price;
+            }
             $oldCostPrice = $product->cost_price / (1 + $provider->profit_margin / 100);
             $product->cost_price = $costPrice;
-            $product->default_price = $default_price;
-            $product->save();
             $newCostPrice = $product->cost_price / (1 + $provider->profit_margin / 100);
+            if ($product->save()) {
+                if ($variation == null) {
+                    // Actualitzem els preus de totes les variacions menys les que ja tinguin un preu especific.
+                    $productVariations = ProductVariationModel::where('product', $this->id)->get();
+                    foreach ($productVariations as $productVariation) {
+                        $productProvider = ProductProviderModel::where('variation', $productVariation->id)->first();
+                        if (!$productProvider) {
+                            $productVariation->cost_price = $costPrice;
+                            $productVariation->price = $default_price;
+                            $productVariation->save();
+                            if (number_format($newCostPrice, 1) != number_format($oldCostPrice, 1)) {
+                                $this->addUpdatePrice($newCostPrice, $oldCostPrice, $variation);
+                            }
+                        }
+                    }
+                    /* ProductVariationModel::where('product', $this->id)
+                    ->whereNotNull('variation')
+                    ->update(['cost_price' => $costPrice, 'price' => $default_price]); */
+                }
+            }
             // Comprobación de que el precio no es el mismo
             if (number_format($newCostPrice, 1) != number_format($oldCostPrice, 1)) {
                 // Añadimos el registro de la nueva actualización del precio
-                $this->addUpdatePrice($newCostPrice, $oldCostPrice);
+                $this->addUpdatePrice($newCostPrice, $oldCostPrice, $variation);
             }
         }
     }
@@ -211,12 +242,12 @@ class ProductModel extends Model
      * Añade una actualización del precio del producto
      *
      * @since 3.0.0
-     * @author Soporte <soporte@buscocomercio.com>
+     * @author David Cortés <david@devuelving.com>
      * @param float $costPrice
      * @param float $oldCostPrice
      * @return void
      */
-    public function addUpdatePrice($costPrice = 0, $oldCostPrice = 0)
+    public function addUpdatePrice($costPrice = 0, $oldCostPrice = 0, $variation = null)
     {
         // Obtenemos el anterior precio del producto
         try {
@@ -239,6 +270,7 @@ class ProductModel extends Model
             // Se añade un nuevo registro con el nuevo precio del producto
             DB::table('product_price_update')->insert([
                 'product' => $this->id,
+                'variation' => $variation,
                 'type' => $type,
                 'new_price_cost' => $costPrice,
                 'old_price_cost' => $oldCostPrice,
@@ -252,7 +284,7 @@ class ProductModel extends Model
      * Función para obtener los datos de un producto
      *
      * @since 3.0.0
-     * @author Soporte <soporte@buscocomercio.com>
+     * @author David Cortés <david@devuelving.com>
      * @param string $data
      * @return void
      */
@@ -265,7 +297,7 @@ class ProductModel extends Model
      * Función para obtener todas las imagenes de un producto ordenadas por preferencia
      *
      * @since 3.0.0
-     * @author Soporte <soporte@buscocomercio.com>
+     * @author David Cortés <david@devuelving.com>
      * @return array
      * @param $images ProductImageModel Parametro para controlar si viene del toArray en el frontend
      */
@@ -296,7 +328,7 @@ class ProductModel extends Model
      * Función para obtener la imagen destacada
      *
      * @since 3.0.0
-     * @author Soporte <soporte@buscocomercio.com>
+     * @author David Cortés <david@devuelving.com>
      * @return void
      */
     public function getDefaultImage($redirect = true)
@@ -308,7 +340,7 @@ class ProductModel extends Model
      * Función para obtener los ean del producto
      *
      * @since 3.0.0
-     * @author Soporte <soporte@buscocomercio.com>
+     * @author David Cortés <david@devuelving.com>
      * @return array
      * @param $productProviders ProductProviderModel Parametro para controlar si viene del toArray en el frontend
      */
@@ -328,7 +360,7 @@ class ProductModel extends Model
      * Función para obtener el ean en un string
      *
      * @since 3.0.0
-     * @author Soporte <soporte@buscocomercio.com>
+     * @author David Cortés <david@devuelving.com>
      * @return void
      */
     public function eanToString()
@@ -349,7 +381,7 @@ class ProductModel extends Model
      * Función para obtener la marca
      *
      * @since 3.0.0
-     * @author Soporte <soporte@buscocomercio.com>
+     * @author David Cortés <david@devuelving.com>
      * @return BrandModel
      * @param $brand BrandModel Parametro para controlar si viene del toArray en el frontend
      */
@@ -365,8 +397,8 @@ class ProductModel extends Model
      * Función para obtener el valor del iva de este producto
      *
      * @since 3.0.0
-     * @author Soporte <soporte@buscocomercio.com>
-     * @return float
+     * @author David Cortés <david@devuelving.com>
+     * @return void
      */
     public function getTax()
     {
@@ -378,22 +410,22 @@ class ProductModel extends Model
      * Returns Provider for the product
      *
      * @param boolean $cheapest
-     * @return ProductProviderModel
+     * @return void
      */
-    public function getProvider($cheapest = false)
+    public function getProvider($cheapest = false, $variation = null)
     {
-        return $this->getProductProvider($cheapest)->getProvider();
+        return $this->getProductProvider($cheapest, $variation)->getProvider($cheapest, $variation);
     }
 
     /**
      * Función para obtene el producto proveedor
      *
      * @since 3.0.0
-     * @author Soporte <soporte@buscocomercio.com>
+     * @author David Cortés <david@devuelving.com>
      * @param boolean $cheapest
-     * @return ProductProviderModel
+     * @return void
      */
-    public function getProductProvider($cheapest = false)
+    public function getProductProvider($cheapest = false, $variation = null)
     {
         try {
             if ($this->franchise === null) {
@@ -409,30 +441,34 @@ class ProductModel extends Model
                 $productProvider = ProductProviderModel::join('provider', 'product_provider.provider', '=', 'provider.id');
                 $productProvider->where('product_provider.product', $this->id);
                 $productProvider->where('provider.active', 1);
-                /*$productProvider->orderBy('product_provider.cost_price', $rule);
-                $productProvider->select('product_provider.*', 'provider.name');
-                $provider = $productProvider->first();*/
-
-                /*if($this->hasPhysicalStock()){
-                    $productProvider->where('provider.stock_type', config('settings.stock_types.fisico'));
-                }*/
+                if ($variation != null && ProductProviderModel::where('product', $this->id)->where('variation', $variation)->exists()) {
+                    $productProvider->where('product_provider.variation', $variation);
+                } else {
+                    //$productProvider->where('product_provider.variation', 0);
+                    $productProvider->OrWhereNull('product_provider.variation');
+                }                
+                
                 $productProvider->orderBy('product_provider.cost_price', $rule);
                 $productProvider->select('product_provider.*', 'provider.name');
-                $provider = $productProvider->first();
+                $productProvider = $productProvider->first();
             } else {
                 if (!$cheapest) {
                     $rule = 'desc';
                 } else {
                     $rule = 'asc';
                 }
-            if($this->stock_type == config('settings.stock_types.fisico'))
-                    $provider = ProductStockModel::where('product', $this->id)->orderBy('product_stock.purchase_price', $rule)->first();
-                else
-                    $provider = ProductProviderModel::where('product', $this->id)->orderBy('product_provider.cost_price', $rule)->first();
+                $productProvider = ProductProviderModel::where('product', $this->id);
+                if ($variation != null && ProductProviderModel::where('product', $this->id)->where('variation', $variation)->exists()) {
+                    $productProvider->where('variation', $variation);
+                } else {
+                    $productProvider->whereNull('variation');
+                }
+                $productProvider->orderBy('cost_price', $rule);
+                $productProvider = $productProvider->first();
             }
-            return $provider;
+            return $productProvider;
         } catch (\Exception $e) {
-            // report($e);
+            report($e);
             return null;
         }
     }
@@ -441,15 +477,15 @@ class ProductModel extends Model
      * Función para obtener datos de producto proveedor
      *
      * @since 3.0.0
-     * @author Soporte <soporte@buscocomercio.com>
+     * @author David Cortés <david@devuelving.com>
      * @param string $data
      * @param boolean $cheapest
      * @return void
      */
-    public function getProductProviderData($data, $cheapest = false)
+    public function getProductProviderData($data, $cheapest = false, $variation = null)
     {
         try {
-            $productProvider = $this->getProductProvider($cheapest);
+            $productProvider = $this->getProductProvider($cheapest, $variation);
             return $productProvider->$data;
         } catch (\Exception $e) {
             // report($e);
@@ -461,21 +497,22 @@ class ProductModel extends Model
      * Función para obtener el precio de coste
      *
      * @since 3.0.0
-     * @author Soporte <soporte@buscocomercio.com>
+     * @author David Cortés <david@devuelving.com>
      * @param boolean $tax
-     * @return float
+     * @return void
      */
-    public function getPublicPriceCost($tax = true)
+    public function getPublicPriceCost($tax = true, $variation = null)
     {
         $discount = $this->getDiscountTarget();
-        // cuando es demo y el usuario es diferente de demo@buscocomercio.com no tiene descuentos
-        if (FranchiseModel::getFranchise()->type == 0 && auth()->user() && auth()->user()->type != 1) {
-            $discount = 1;
+        if ($variation == null) {
+            $cost_price = $this->cost_price;
+        } else {
+            $cost_price = ProductVariationModel::find($variation)->cost_price;
         }
         if ($tax) {
-            return ($this->cost_price * $discount) * ($this->getTax() + 1);
+            return ($cost_price * $discount) * ($this->getTax() + 1);
         } else {
-            return ($this->cost_price * $discount);
+            return ($cost_price * $discount);
         }
     }
 
@@ -483,18 +520,17 @@ class ProductModel extends Model
      * Función para comprobar si tienen activos algún descuento y aplicarlo al precio de coste
      *
      * @since 3.0.0
-     * @author Soporte <soporte@buscocomercio.com>
+     * @author David Cortés <david@devuelving.com>
      * @return void
      */
     public function getDiscountTarget()
     {
         $discount = 1;
-        $franchise = FranchiseModel::getFranchise();
-        if ($franchise) {
+        if (FranchiseModel::getFranchise()) {
             try {
                 // Comprobamos si la franquicia tiene los descuentos activados
-                if ($franchise->getCustom('discount') != null) {
-                    $franchiseDiscounts = json_decode($franchise->getCustom('discount'));
+                if (FranchiseModel::getFranchise()->getCustom('discount') != null) {
+                    $franchiseDiscounts = json_decode(FranchiseModel::getFranchise()->getCustom('discount'));
                     // Recorremos todos los descuentos de la franquicia
                     foreach ($franchiseDiscounts as $FranchiseDiscountTarget) {
                         // Obtenemos los datos de los descuentos
@@ -519,49 +555,30 @@ class ProductModel extends Model
         }
         return $discount;
     }
-    /**
-     * Función para calcular el número de unidades compradas de un producto para un usuario concreto
-     *     
-     */
-    public function getUnitsPurchased($user = null)
-    {
-        //select sum(order_details.units) from `orders` 
-        //inner join `order_details` on `orders`.`id` = `order_details`.`order` 
-        //inner join `product` on `product`.`id` = `order_details`.`product` 
-        //where `orders`.`customer` = 1 and `orders`.`status` not in (10, 0, 1) and `order_details`.`product` = 38349
-        $unitsPurchased = OrderDetailModel::join('orders', 'order_details.order', '=', 'orders.id')
-            ->join('product', 'product.id', '=', 'order_details.product')
-            ->where('orders.customer', $user)
-            ->whereNotIn('orders.status', [0, 1, 10])
-            ->where('order_details.product', '=', $this->id)
-            ->select('order_details.units')
-            ->sum('order_details.units');
-        return $unitsPurchased;
-    }
+
     /**
      * Función para obtener el precio de coste sin IVA
      *
      * @since 3.0.0
-     * @author Soporte <soporte@buscocomercio.com>
+     * @author David Cortés <david@devuelving.com>
      * @return void
      */
-    public function getPublicPriceCostWithoutIva()
+    public function getPublicPriceCostWithoutIva($variation = null)
     {
-        return $this->getPublicPriceCost(false);
+        return $this->getPublicPriceCost(false, $variation);
     }
 
     /**
      * Función para obtener el precio sin IVA
      *
      * @since 3.0.0
-     * @author Soporte <soporte@buscocomercio.com>
+     * @author David Cortés <david@devuelving.com>
      * @return void
      */
-    public function getPriceWithoutIva()
+    public function getPriceWithoutIva($variation = null)
     {
-        $price = $this->getPrice();
-        if ($price != null) {
-            return $price;
+        if ($this->getPrice($variation) != null) {
+            return $this->getPrice($variation);
         }
         return null;
     }
@@ -570,12 +587,16 @@ class ProductModel extends Model
      * Función para obtener el precio con el margen de beneficio del proveedor anterior al cambio
      *
      * @since 3.0.0
-     * @author Soporte <soporte@buscocomercio.com>
-     * @return float
+     * @author David Cortés <david@devuelving.com>
+     * @return void
      */
-    public function getOldPublicPriceCost()
+    public function getOldPublicPriceCost($variation = null)
     {
-        $productPriceUpdate = DB::table('product_price_update')->where('product', $this->id)->orderBy('id', 'desc')->first();
+        if ($variation == null) {
+            $productPriceUpdate = DB::table('product_price_update')->where('product', $this->id)->orderBy('id', 'desc')->first();
+        } else {
+            $productPriceUpdate = DB::table('product_price_update')->where('variation', $variation)->orderBy('id', 'desc')->first();
+        }
         return $productPriceUpdate->price + ($productPriceUpdate->price * $this->getTax());
     }
 
@@ -583,13 +604,13 @@ class ProductModel extends Model
      * Función para obtener la fecha de la ultima actualización de los precios de un producto
      *
      * @since 3.0.0
-     * @author Soporte <soporte@buscocomercio.com>
-     * @return float
+     * @author David Cortés <david@devuelving.com>
+     * @return void
      */
-    public function getLastPriceUpdate()
+    public function getLastPriceUpdate($variation = null)
     {
-        if ($this->getProductProviderData('cost_price') != null) {
-            $productPriceUpdate = DB::table('product_price_update')->where('product', $this->id)->orderBy('id', 'desc')->first();
+        if ($this->getProductProviderData('cost_price', $variation) != null) {
+            $productPriceUpdate = DB::table('product_price_update')->where('product', $this->id)->where('variation', $variation)->orderBy('id', 'desc')->first();
             return $productPriceUpdate->created_at;
         }
         return null;
@@ -599,25 +620,28 @@ class ProductModel extends Model
      * Función para obtener el precio recomendado
      *
      * @since 3.0.0
-     * @author Soporte <soporte@buscocomercio.com>
-     * @return float
+     * @author David Cortés <david@devuelving.com>
+     * @return void
      */
-    public function getRecommendedPrice()
+    public function getRecommendedPrice($variation = null)
     {
-        return $this->recommended_price;
+        if ($variation != null) {
+            return ProductVariationModel::find($variation)->recommended_price;
+        } else {
+            return $this->recommended_price;
+        }
     }
 
     /**
      * Función para comprobar si tiene un precio customizado
      *
      * @since 3.0.0
-     * @author Soporte <soporte@buscocomercio.com>
-     * @return boolean
+     * @author David Cortés <david@devuelving.com>
+     * @return void
      */
     public function checkCustomPrice()
     {
-        $franchise = FranchiseModel::getFranchise();
-        $productCustom = ProductCustomModel::where('product', $this->id)->where('franchise', $franchise->id)->whereNotNull('price')->get();
+        $productCustom = ProductCustomModel::where('product', $this->id)->where('franchise', FranchiseModel::getFranchise()->id)->whereNotNull('price')->get();
         if (count($productCustom) == 0) {
             return false;
         } else {
@@ -629,8 +653,8 @@ class ProductModel extends Model
      * Función para comprobar el tipo de precio custom del precio
      *
      * @since 3.0.0
-     * @author Soporte <soporte@buscocomercio.com>
-     * @return int
+     * @author David Cortés <david@devuelving.com>
+     * @return void
      */
     public function typeCustomPrice()
     {
@@ -651,9 +675,9 @@ class ProductModel extends Model
      * Función para comprobar si el producto esta en promocion
      *
      * @since 3.0.0
-     * @author Soporte <soporte@buscocomercio.com>
+     * @author David Cortés <david@devuelving.com>
      * @return boolean
-     * @param ProductCustomModel $productCustom  Parametro para controlar si viene del toArray en el frontend
+     * @param $productCustom ProductCustomModel Parametro para controlar si viene del toArray en el frontend
      */
     public function checkPromotion($productCustom = null)
     {
@@ -672,8 +696,8 @@ class ProductModel extends Model
      * Función para comprobar si el producto se envia a Canarias
      *
      * @since 3.0.0
-     * @author Soporte <soporte@buscocomercio.com>
-     * @return boolean
+     * @author David Cortés <david@devuelving.com>
+     * @return void
      */
     public function checkCanarias()
     {
@@ -687,8 +711,8 @@ class ProductModel extends Model
      * Comprueba si el producto esta en promociones por defecto
      *
      * @since 3.0.0
-     * @author Soporte <soporte@buscocomercio.com>
-     * @return boolean
+     * @author David Cortés <david@devuelving.com>
+     * @return void
      */
     public function checkSuperPromo()
     {
@@ -703,8 +727,8 @@ class ProductModel extends Model
      * Comprueba que el producto esta en liquidación
      *
      * @since 3.0.0
-     * @author Soporte <soporte@buscocomercio.com>
-     * @return boolean
+     * @author David Cortés <david@devuelving.com>
+     * @return void
      */
     public function checkLiquidation()
     {
@@ -719,8 +743,8 @@ class ProductModel extends Model
      * Comprobamos si los productos tiene la oferta 2x1
      *
      * @since 3.0.0
-     * @author Soporte <soporte@buscocomercio.com>
-     * @return boolean
+     * @author David Cortés <david@devuelving.com>
+     * @return void
      */
     public function checkDoubleUnit()
     {
@@ -735,21 +759,25 @@ class ProductModel extends Model
      * Función para obtener el precio de venta al publico
      *
      * @since 3.0.0
-     * @author Soporte <soporte@buscocomercio.com>
-     * @return float
+     * @author David Cortés <david@devuelving.com>
+     * @return void
      */
-    public function getPrice()
+    public function getPrice($variation = null)
     {
         $price = 0;
-        if ($this->checkCustomPrice()) {
-            $productCustom = ProductCustomModel::where('product', $this->id)->where('franchise', FranchiseModel::getFranchise()->id)->first();
-            if ($productCustom->price_type == 1) {
-                $price = $productCustom->price;
-            } else {
-                $price = $this->getPublicPriceCost() * (($productCustom->price / 100) + 1);
-            }
+        if ($variation != null) {
+            $price = ProductVariationModel::find($variation)->price;
         } else {
-            $price = $this->default_price;
+            if ($this->checkCustomPrice()) {
+                $productCustom = ProductCustomModel::where('product', $this->id)->where('franchise', FranchiseModel::getFranchise()->id)->first();
+                if ($productCustom->price_type == 1) {
+                    $price = $productCustom->price;
+                } else {
+                    $price = $this->getPublicPriceCost() * (($productCustom->price / 100) + 1);
+                }
+            } else {
+                $price = $this->default_price;
+            }
         }
         return $price;
     }
@@ -758,8 +786,8 @@ class ProductModel extends Model
      * Función para obtener las categorias del producto
      *
      * @since 3.0.0
-     * @author Soporte <soporte@buscocomercio.com>
-     * @return ProductCategoryModel
+     * @author David Cortés <david@devuelving.com>
+     * @return void
      */
     public function getCategories()
     {
@@ -770,15 +798,13 @@ class ProductModel extends Model
      * Función para obtener el beneficio de un producto
      *
      * @since 3.0.0
-     * @author Soporte <soporte@buscocomercio.com>
-     * @return float
+     * @author David Cortés <david@devuelving.com>
+     * @return void
      */
-    public function getProfit()
+    public function getProfit($variation = null)
     {
-        $price = $this->getPrice();
-        if ($price != null) {            
-            $publicprice = $this->getPublicPriceCost();
-            return ($price - $publicprice) / $publicprice;
+        if ($this->getPrice($variation) != null) {
+            return ($this->getPrice($variation) - $this->getPublicPriceCost()) / $this->getPublicPriceCost();
         }
         return 0;
     }
@@ -787,42 +813,38 @@ class ProductModel extends Model
      * Función para obtener el margen beneficio real del producto
      *
      * @since 3.0.0
-     * @author Soporte <soporte@buscocomercio.com>
+     * @author David Cortés <david@devuelving.com>
      * @param boolean $front
-     * @return float
+     * @return void
      */
     public function getProfitMargin($front = false)
     {
-        $profit = $this->getProfit();
-        if ($profit != null) {
+        if ($this->getProfit() != null) {
             if ($front == false) {
-                return round($profit * 100);
+                return round($this->getProfit() * 100);
             } else {
-                if (($profit * 100) > $this->getFullPriceMargin()) {
+                if (($this->getProfit() * 100) > $this->getFullPriceMargin()) {
                     return 0;
                 } else {
-                    return round($profit * 100);
+                    return round($this->getProfit() * 100);
                 }
             }
         }
         return 0;
-    }    
-    
+    }
+
     /**
      * Función para obtener el descuento entre el precio de venta y el PVPR
      *
      * @since 3.0.0
-     * @author Soporte <soporte@buscocomercio.com>
-     * @return float
+     * @author David Cortés <david@devuelving.com>
+     * @return void
      */
-    public function getPublicMarginProfit($publicPrice = null)
+    public function getPublicMarginProfit($variation = null)
     {
         try {
-            if(!$publicPrice){
-                $publicPrice = $this->getPrice();
-            }
-            
-            $recommendedPrice = $this->getRecommendedPrice();
+            $publicPrice = $this->getPrice($variation);
+            $recommendedPrice = $this->getRecommendedPrice($variation);
             return round((($recommendedPrice - $publicPrice) / $recommendedPrice) * 100);
         } catch (\Exception $e) {
             // report($e);
@@ -834,14 +856,14 @@ class ProductModel extends Model
      * Función para obtener el beneficio entre el precio de coste y el pvpr
      *
      * @since 3.0.0
-     * @author Soporte <soporte@buscocomercio.com>
-     * @return float
+     * @author David Cortés <david@devuelving.com>
+     * @return void
      */
-    public function getFullPriceMargin()
+    public function getFullPriceMargin($variation = null)
     {
-        if ($this->getRecommendedPrice() != null) {
-            $recommendedPrice = $this->getRecommendedPrice();
-            $costPrice = $this->getPublicPriceCost();
+        if ($this->getRecommendedPrice($variation) != null) {
+            $recommendedPrice = $this->getRecommendedPrice($variation);
+            $costPrice = $this->getPublicPriceCost(true, $variation);
             return round((($recommendedPrice - $costPrice) / $costPrice) * 100);
         }
         return null;
@@ -851,9 +873,9 @@ class ProductModel extends Model
      * Función para poner la unidad customizada al producto para la franquicia
      *
      * @since 3.0.0
-     * @author Soporte <soporte@buscocomercio.com>
+     * @author David Cortés <david@devuelving.com>
      * @param array $options
-     * @return array
+     * @return void
      */
     public function productCustom($options = [])
     {
@@ -872,18 +894,17 @@ class ProductModel extends Model
             } else {
                 $publicPrice = $options['price'];
                 $costPrice = $this->getPublicPriceCost();
-                $recommendprice = $this->getRecommendedPrice();
                 $margin = round((($publicPrice - $costPrice) / $costPrice) * 100);
                 //$discountprice = 
                 $provider = $this->getProductProviderData('provider');
-                //Megaplus tiene una limitación y no se puede tener el precio custom por debajo del 10% de PVPR
-                $minim_custom_price_5 = $recommendprice - ($recommendprice * 0.10);
-                $defaultprice = $this->getDefaultPrice();
-                $newPrice = $costPrice  + ($costPrice * ($options['price'] / 100));
-                info('new price: ' . $newPrice);
-                info('minium price: ' . $minim_custom_price_5);
-                info('price type: ' . $options['price_type'] );
-                info("request number: " . number_format($options['price'], 2, '.', ''));
+                //Megaplus tiene una limitación y no se puede tener el precio custom por debajo del 15% de PVPR
+                if ($options['price_type'] == 1){
+                    $price = number_format($options['price'], 2, '.', '');
+                }
+                else{
+                    $price = $costPrice * ((number_format($options['price'], 2, '.', '') / 100) + 1);
+                }
+                $minim_custom_price = $recommendprice - ($recommendprice * 0.15);
                 if ($margin < 1 && $options['price_type'] == 1) {
                     return [
                         'status' => false,
@@ -897,32 +918,10 @@ class ProductModel extends Model
                         'profit_margin' => $this->getProfitMargin(),
                         'full_price_margin' => $this->getFullPriceMargin(),
                     ];
-                    // } else if ($provider == 5 && $minim_custom_price_5 > number_format($options['price'], 2, '.', '') && ($options['price_type'] == 1 || $options['price_type'] == 2)) {    
-                    // MEGAPLUS + ARTESANIA AGRICOLA
-                } else if (
-                    ($provider == 5 || $provider == 6)
-                    && (
-                        ($options['price_type'] == 2 && ($newPrice < $minim_custom_price_5)) ||
-                        ($options['price_type'] == 1 && (number_format($options['price'], 2, '.', '') < $minim_custom_price_5)))
-                ) {
+                } else if ($provider == 5 && $minim_custom_price > $price && ($options['price_type'] == 1 || $options['price_type'] == 2)) {
                     return [
                         'status' => false,
-                        'message' => 'Condiciones especiales para este proveedor. Descuento máximo sobre PVPR del 10%.',
-                        'custom_price' => $this->checkCustomPrice(),
-                        'type_custom_price' => $this->typeCustomPrice(),
-                        'cost_price' => number_format($this->getPublicPriceCostWithoutIva(), 2, '.', ''),
-                        'cost_price_iva' => number_format($this->getPublicPriceCost(), 2, '.', ''),
-                        'recommended_price' => number_format($this->getRecommendedPrice(), 2, '.', ''),
-                        'price' => number_format($this->getPrice(), 2, '.', ''),
-                        'profit_margin' => $this->getProfitMargin(),
-                        'full_price_margin' => $this->getFullPriceMargin(),
-                    ];
-                    // BEMALU
-                } else if ($provider == 4 && (($defaultprice / 1.14 > number_format($publicPrice, 2, '.', '') && $options['price_type'] == 1) ||
-                    ($options['price_type'] == 2 && $defaultprice / 1.14 > (($publicPrice / 100) + 1) * $costPrice))) {
-                    return [
-                        'status' => false,
-                        'message' => 'Precio mínimo para este producto->' . number_format($defaultprice / 1.14, 2, '.', ''),
+                        'message' => 'Condiciones especiales para este proveedor. Descuento máximo sobre PVPR del 15%.',
                         'custom_price' => $this->checkCustomPrice(),
                         'type_custom_price' => $this->typeCustomPrice(),
                         'cost_price' => number_format($this->getPublicPriceCostWithoutIva(), 2, '.', ''),
@@ -976,7 +975,7 @@ class ProductModel extends Model
      * Función para obtener el nombre del producto segun la franquicia
      *
      * @since 3.0.0
-     * @author Soporte <soporte@buscocomercio.com>
+     * @author David Cortés <david@devuelving.com>
      * @return string
      * @param $productCustom ProductCustomModel Parametro para controlar si viene del toArray en el frontend
      */
@@ -1001,8 +1000,8 @@ class ProductModel extends Model
      * Función para obtener la descripción del producto segun la franquicia
      *
      * @since 3.0.0
-     * @author Soporte <soporte@buscocomercio.com>
-     * @return string
+     * @author David Cortés <david@devuelving.com>
+     * @return void
      * @param $productCustom ProductCustomModel Parametro para controlar si viene del toArray en el frontend
      */
     public function getDescription($productCustom = null)
@@ -1026,9 +1025,9 @@ class ProductModel extends Model
      * Método para obtener la descripción corta
      *
      * @since 3.0.0
-     * @author Soporte <soporte@buscocomercio.com>
+     * @author David Cortés <david@devuelving.com>
      * @param integer $maxLength
-     * @return string
+     * @return void
      */
     public function getShortDescription($maxLength = 440)
     {
@@ -1045,9 +1044,9 @@ class ProductModel extends Model
      * Función para obtener las etiquetas meta personalizadas
      *
      * @since 3.0.0
-     * @author Soporte <soporte@buscocomercio.com>
+     * @author David Cortés <david@devuelving.com>
      * @param string $type
-     * @return string
+     * @return void
      */
     public function getMetaData($type)
     {
@@ -1088,23 +1087,24 @@ class ProductModel extends Model
      * Devuelve stock actual, true si no mantenemos stock o false si está agotado.
      *
      * @since 3.0.0
-     * @author Aaron Bujalance <soporte@buscocomercio.com>
-     * @return integer
+     * @author Aaron Bujalance <aaron@devuelving.com>
+     * @return boolean
      */
-    public function getStock($order = 0)
+    public function getStock($order = 0, $variation = null)
     {
         if (!$this->unavailable && !$this->discontinued) {
-            if ($this->hasPhysicalStock()) {
-                $additions = ProductStockModel::where('product_stock.type', '=', 2)->where('product_stock.product', '=', $this->id)->sum('stock');
-                $subtractions = ProductStockModel::where('product_stock.type', '=', 1)->where('product_stock.product', '=', $this->id)->sum('stock');
+            if ($this->stock_type == 1) {
+                $additions = ProductStockModel::where('product_stock.type', '=', 2)->where('product_stock.product', '=', $this->id)->where('product_stock.variation', $variation)->sum('stock');
+                $subtractions = ProductStockModel::where('product_stock.type', '=', 1)->where('product_stock.product', '=', $this->id)->where('product_stock.variation', $variation)->sum('stock');
                 $stock = $additions - $subtractions;
                 if ($stock < 0) $stock = 0;
                 return $stock;
-            } else if ($this->hasDropshippingStock()) {
-                $stock = $this->getProductProvider()->stock;
+            } else if ($this->stock_type == 3) {
+                $stock = $this->getProductProvider(false, $variation)->stock;
                 $date = Carbon::now()->subDays(2)->toDateString();
                 $reserved = OrderDetailModel::join('orders', 'order_details.order', '=', 'orders.id')
                     ->where('product', $this->id)
+                    ->where('variation', $variation)
                     ->where('order', '!=', $order)
                     ->whereDate('orders.created_at', '>=', $date, ' and')
                     ->whereIn('orders.status', [1, 2]);
@@ -1114,8 +1114,8 @@ class ProductModel extends Model
                     $query->orWhere('orders.status', 2);
                 });
                 return $stock - ($reserved->sum('order_details.units'));
-            } else if ($this->hasLiquidationStock()) {
-                return $this->getProductProvider()->stock;
+            } else if ($this->stock_type == 4) {
+                return $this->getProductProvider(false, $variation)->stock;
             } else {
                 return true;
             }
@@ -1128,12 +1128,12 @@ class ProductModel extends Model
      * Método para comprobar si se muestran los precios visibles
      *
      * @since 3.0.0
-     * @author Soporte <soporte@buscocomercio.com>
+     * @author David Cortés <david@devuelving.com>
      * @return boolean
      */
     public function visiblePrice()
     {
-        if ((bool) FranchiseModel::custom('visible_price', false) || auth()->check()) {
+        if ((bool) session('visiblePrice') == 1 || auth()->check()) {
             return true;
         } else {
             return false;
@@ -1144,12 +1144,12 @@ class ProductModel extends Model
      * Método para comporbar si se muetran los descuentos
      *
      * @since 3.0.0
-     * @author Soporte <soporte@buscocomercio.com>
+     * @author David Cortés <david@devuelving.com>
      * @return boolean
      */
     public function visibleDiscounts()
     {
-        if (((FranchiseModel::getFranchise()->type == 0) && ($this->getPublicMarginProfit() < 25)) || ((!(bool) FranchiseModel::custom('visible_discounts', true)) || ($this->getPublicMarginProfit() < 5))) {
+        if (((FranchiseModel::get('type') == 0) && ($this->getPublicMarginProfit() < 25)) || ((!(bool) FranchiseModel::custom('visible_discounts', true)) || ($this->getPublicMarginProfit() < 5))) {
             return false;
         } else {
             return true;
@@ -1160,31 +1160,86 @@ class ProductModel extends Model
      * Función para imprimir un banner del producto
      *
      * @since 3.0.0
-     * @author Soporte <soporte@buscocomercio.com>
+     * @author David Cortés <david@devuelving.com>
      * @return void
      */
-    public function print($productdata = null)
+    public function print()
     {
-        $product = $this;//ProductModel::find($this->id);
-        if(!$productdata){            
-            $productdata = [];
-        }
-        return view('modules.catalog.product', compact('product', 'productdata'));
+        //$product = ProductModel::find($this->id);
+        $product = $this;
+        return view('modules.catalog.product', compact('product'));
     }
 
 
-    public function hasPhysicalStock()
-    {
+    public function hasPhysicalStock(){
         return $this->stock_type == config('settings.stock_types.fisico');
     }
 
-    public function hasDropshippingStock()
-    {
+    public function hasDropshippingStock(){
         return $this->stock_type == config('settings.stock_types.dropshipping');
     }
 
-    public function hasLiquidationStock()
-    {
+    public function hasLiquidationStock(){
         return $this->stock_type == config('settings.stock_types.liquidacion');
+    }
+
+    public function getVariations()
+    {        
+        return $this->hasMany(ProductVariationModel::class, 'product', 'id');
+    }
+
+    public function buildVariations()
+    {
+        // genera JSON per a Product
+        $productVariations = ProductVariationModel::where('product', $this->id)->get();
+        $resultArray = array();
+        foreach ($productVariations as $productVariations) {
+            foreach ($productVariations->variation as $key => $variation) {
+                if (!array_key_exists($key, $resultArray)) {
+                    $resultArray[$key][0] = $variation;
+                } else {
+                    if (!in_array($variation, $resultArray[$key])) {
+                        $resultArray[$key][] = $variation;
+                    }
+                }
+            }
+            // info(print_r($variation, true));
+        }
+        $this->variations = json_encode($resultArray);
+    }
+
+
+
+    /**
+     * Actualiza los precios del producto en la tabla de productos (NO ES FA SERVIR)
+     *
+     * @since 3.0.0
+     * @author Eduard <eduardn@devuelving.com>
+     * @return void
+     */
+    public function updateMyShopCostPrice($variation = null)
+    {
+        if ($this->franchise !== null) {
+            // Obtenemos el product provider
+            $productProvider = $this->getProductProvider(false, $variation);
+            // Obtenemos el proveedor del producto
+            $provider = $productProvider->getProvider(false, $variation);
+            // Obtenemos el precio de coste y le sumamos el margen de beneficio del proveedor
+            $costPrice = $productProvider->cost_price + ($productProvider->cost_price * ($provider->profit_margin / 100));
+            if ($variation == null) {
+                // Actualitzem els preus de totes les variacions menys les que ja tinguin un preu especific.
+                $productVariations = ProductVariationModel::where('product', $this->id)->get();
+                foreach ($productVariations as $productVariation) {
+                    $productProvider = ProductProviderModel::where('variation', $productVariation->id)->first();
+                    if (!$productProvider) {
+                        $productVariation->cost_price = $costPrice;
+                        $productVariation->save();
+                    }
+                    /* ProductVariationModel::where('product', $this->id)
+                    ->whereNotNull('variation')
+                    ->update(['cost_price' => $costPrice, 'price' => $default_price]); */
+                }
+            }
+        }
     }
 }

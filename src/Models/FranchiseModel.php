@@ -3,10 +3,10 @@
 namespace buscocomercio\core;
 
 use Carbon\Carbon;
-use buscocomercio\core\CustomerModel;
+use Buscocomercio\Core\CustomerModel;
 use Illuminate\Database\Eloquent\Model;
-use buscocomercio\core\CallAppointmentModel;
-use buscocomercio\core\FranchiseServicesModel;
+use Buscocomercio\Core\CallAppointmentModel;
+use Buscocomercio\Core\FranchiseServicesModel;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class FranchiseModel extends Model

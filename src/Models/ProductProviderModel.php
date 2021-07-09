@@ -2,8 +2,8 @@
 
 namespace buscocomercio\core;
 
-use buscocomercio\core\ProductModel;
-use buscocomercio\core\ProviderModel;
+use Buscocomercio\Core\ProductModel;
+use Buscocomercio\Core\ProviderModel;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
