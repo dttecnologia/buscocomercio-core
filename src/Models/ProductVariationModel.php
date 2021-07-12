@@ -26,7 +26,7 @@ class ProductVariationModel extends Model
      * @var array
      */
     protected $fillable = [
-        'product', 'variation', 'price', 'related_image', 'ean', 'status',
+        'product', 'variation', 'cost_price', 'recommended_price', 'price', 'related_image', 'ean', 'status',
     ];
 
     /**
@@ -37,4 +37,45 @@ class ProductVariationModel extends Model
     protected $hidden = [
         'created_at', 'updated_at',
     ];
+
+    public function product()
+    {
+        return $this->belongsTo(ProductModel::class, 'product', 'id');
+    }
+
+
+    /**
+     * Get variations as array.
+     *
+     * @param  string  $value
+     * @return string
+     */
+    public function getVariationAttribute($value)
+    {
+        return json_decode($value);
+    }
+
+        /**
+     * Get variations full name (product + variation).
+     *
+     * @param  string  $value
+     * @return string
+     */
+    public function getProductFullNameAttribute()
+    {
+        return $this->product()->first()->name . ' (' . $this->name . ')';
+    }
+
+    
+    public function encodeVariations($variations)
+    {
+        $variationsArray = explode(",", $variations); // [key:value, key:value]
+        foreach ($variationsArray as $variation) {
+            $pos = strpos($variation, ":");
+            $key = trim(substr($variation, 0, $pos));
+            $value = trim(substr($variation, $pos + 1));
+            $result[$key] = $value;
+        }
+        $this->variation = json_encode($result);
+    }
 }

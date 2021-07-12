@@ -31,7 +31,7 @@ class ProductProviderModel extends Model
      * @var array
      */
     protected $fillable = [
-        'product', 'ean', 'reference', 'cost_price', 'provider', 'stock',
+        'product', 'variation', 'ean', 'reference', 'cost_price', 'provider', 'stock',
     ];
 
     /**
@@ -54,15 +54,29 @@ class ProductProviderModel extends Model
 
         self::created(function ($productProvider) {
             $product = ProductModel::find($productProvider->product);
+            $productVariation = ProductVariationModel::find($productProvider->variation);
+            if ($productVariation){
+                $variation = $productVariation->variation;
+            }
+            else{
+                $variation = null;
+            }
             if (!$product->franchise){
-                $product->updatePrice();
+                $product->updatePrice($variation);
             }
         });
 
         self::updated(function ($productProvider) {
             $product = ProductModel::find($productProvider->product);
+            $productVariation = ProductVariationModel::find($productProvider->variation);
+            if ($productVariation){
+                $variation = $productVariation->variation;
+            }
+            else{
+                $variation = null;
+            }
             if (!$product->franchise){
-                $product->updatePrice();
+                $product->updatePrice($variation);
             }
         });
     }
