@@ -1,6 +1,6 @@
 <?php
 
-namespace App;
+namespace  Buscocomercio\Core;
 
 use Illuminate\Database\Eloquent\Model;
 

@@ -1,17 +1,17 @@
 <?php
 
-namespace Buscocomercio\Core;
+namespace Buscocomerce\core;
 
 use Illuminate\Database\Eloquent\Model;
 
-class SuggestionModel extends Model
+class SubscriptionPaymentModel extends Model
 {
     /**
      * The table associated with the model.
      *
      * @var string
      */
-    protected $table = 'suggestions';
+    protected $table = 'subscription_payments';
 
     /**
      * Indicates if the model should be timestamped.
@@ -26,7 +26,7 @@ class SuggestionModel extends Model
      * @var array
      */
     protected $fillable = [
-        'customer', 'type', 'status', 'content', 'options',
+        'franchise'
     ];
 
     /**
@@ -35,6 +35,15 @@ class SuggestionModel extends Model
      * @var array
      */
     protected $hidden = [
-        'created_at', 'updated_at',
+        'updated_at',
+    ];
+
+     /**
+     * The attributes that should be mutated to dates.
+     *
+     * @var array
+     */
+    protected $dates = [
+        'created_at',
     ];
 }
