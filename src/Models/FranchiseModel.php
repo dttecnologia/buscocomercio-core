@@ -66,9 +66,9 @@ class FranchiseModel extends Model
                 return config('app.cdn.url') . $franchiseLogo;
                 }
             } 
-            return asset('images/app/brand/logo.png');
+            return asset('assets/images/brand/logo.png');
         } catch (\Exception $e) {
-            return asset('images/app/brand/logo.png');
+            return asset('assets/images/brand/logo.png');
         }
     }
 
@@ -86,9 +86,9 @@ class FranchiseModel extends Model
                 // return '/cdn/' . $franchise->getCustom('icon');
                 return route('index') . '/cdn/' . $franchise->getCustom('icon');
             }
-            return asset('images/app/brand/icon.png');
+            return asset('assets/images/brand/icon.png');
         } catch (\Exception $e) {
-            return asset('images/app/brand/icon.png');
+            return asset('assets/images/brand/icon.png');
         }
     }
 
