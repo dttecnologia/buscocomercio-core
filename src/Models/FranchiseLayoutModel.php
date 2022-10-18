@@ -30,7 +30,7 @@ class FranchiseLayoutModel extends Model
      * @var array
      */
     protected $fillable = [
-        'id', 'franchise', 'type', 'name', 'content'
+        'id', 'franchise', 'type', 'name', 'content', 'img'
     ];
 
     /**

@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class PortalModel extends Model
 {
+    //use SoftDeletes;
     /**
      * The table associated with the model.
      *
@@ -25,4 +26,18 @@ class PortalModel extends Model
      *
      * @var array
      */
+    protected $fillable = [
+        'id', 'franchise', 'type', 'name', 'shipping_locations', 'sector', 'address', 'phone', 'email', 'web', 'img', 'published', 'notes', 'data', 'web',
+    ];
+
+    /**
+     * The attributes that should be hidden for arrays.
+     *
+     * @var array
+     */
+    protected $hidden = [
+        'created_at', 'updated_at',
+    ];
+
+
 }

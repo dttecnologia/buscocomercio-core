@@ -404,7 +404,7 @@ class OrderModel extends Model
         $weight = 0;
         $products = $this->listProducts();
         foreach ($products as $product) {
-            if ($product->getProduct()->getProvider() == $provider) {
+            if ($product->getProduct()->provider == $provider) {
                 $weight = $weight + $product->getProduct()->weight;
             }
         }
@@ -528,7 +528,7 @@ class OrderModel extends Model
         $order_lines = OrderDetailModel::where('order', $this->id)->get();
         foreach ($order_lines as $order_line) {
             $product = ProductModel::find($order_line->product);
-            if ($product->getProvider()->id == $provider) {
+            if ($product->provider == $provider) {
                 return true;
             }
         }
@@ -546,7 +546,7 @@ class OrderModel extends Model
         $weight = 0;
         $products = $this->listProducts();
         foreach ($products as $product) {
-            if (!($product->getProduct()->getProvider()->id == 11 && $excludeMeat = true)) {
+            if (!($product->getProduct()->provider == 11 && $excludeMeat = true)) {
                 $weight = $weight + $product->getProduct()->weight;
             }
         }
@@ -565,7 +565,7 @@ class OrderModel extends Model
         $volume = 0;
         $products = $this->listProducts();
         foreach ($products as $product) {
-            if (!($product->getProduct()->getProvider()->id == 11 && $excludeMeat = true)) {
+            if (!($product->getProduct()->provider == 11 && $excludeMeat = true)) {
                 $weight = $weight + $product->getProduct()->weight * $product->units;
                 $volume = $volume + $product->getProduct()->volume * $product->units;
             }

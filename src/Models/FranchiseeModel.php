@@ -26,7 +26,7 @@ class FranchiseeModel extends Model
      * @var array
      */
     protected $fillable = [
-        'franchise', 'name', 'surname', 'email', 'password', 'lang', 'type', 'status', 'email_verified_at', 'image', 'product_alert', 'remember_token',
+        'franchise', 'name', 'surname', 'email', 'password', 'lang', 'type', 'status', 'email_verified_at', 'image', 'finish', 'product_alert', 'remember_token',
     ];
 
     /**

@@ -3,6 +3,7 @@
 namespace  Buscocomercio\Core;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Builder;
 use Cviebrock\EloquentSluggable\Sluggable;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -31,7 +32,7 @@ class BrandModel extends Model
      * @var array
      */
     protected $fillable = [
-        'slug', 'name', 'image', 'franchise',
+        'slug', 'name', 'image', 'franchise', 'meta_title', 'meta_description', 'meta_keywords'
     ];
 
     /**
@@ -40,7 +41,7 @@ class BrandModel extends Model
      * @var array
      */
     protected $hidden = [
-        'created_at', 'updated_at',
+        'created_at', 'updated_at', 'deleted_at', 
     ];
 
     /**
@@ -48,15 +49,23 @@ class BrandModel extends Model
      *
      * @return array
      */
-    public function sluggable()
+    public function sluggable(): array
     {
         return [
             'slug' => [
-                'source' => ['name', 'franchise']
+                'source' => ['name'],
+                'unique' => true,
+                'onUpdate' => true,
+                'maxLength' => 191,
+                'includeTrashed' => true
             ]
         ];
     }
 
+    public function scopeWithUniqueSlugConstraints(Builder $query, Model $model, $attribute, $config, $slug) {
+        return $query->where('franchise', $model->franchise);
+    }
+    
     /**
      * Función para imprimir un banner de la marca
      *

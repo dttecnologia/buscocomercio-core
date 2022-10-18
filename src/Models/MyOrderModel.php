@@ -459,7 +459,7 @@ class MyOrderModel extends Model
         $order_lines = MyOrderDetailModel::where('order', $this->id)->get();
         foreach ($order_lines as $order_line) {
             $product = ProductModel::find($order_line->product);
-            if ($product->getProvider()->id == $provider) {
+            if ($product->provider == $provider) {
                 return true;
             }
         }

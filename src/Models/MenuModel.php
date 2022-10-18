@@ -13,7 +13,7 @@ class MenuModel
      */
     public static function getDefaultMenu()
     {
-        return  [
+        /*return  [
             ['type' => 0, 'text' => 'Inicio'],
             ['type' => 2, 'text' => 'Hogar', 'category' => 1],
             ['type' => 1, 'text' => 'Perfumes y Cosmética', 'category' => 2],
@@ -24,6 +24,37 @@ class MenuModel
             ['type' => 2, 'text' => 'Dietética Natural', 'category' => 7],
             ['type' => 1, 'text' => 'Tecnología', 'category' => 8],
             ['type' => 1, 'text' => 'Más Categorías', 'category' => 2367]
+        ];*/
+        return  [
+            ['type' => 0, 'text' => 'Inicio'],
+            ['type' => 3, 'text' => 'Contacto', 'link' => '/contact']
         ];
     }
+    /**
+     * Devuelve la estructura base del menú secundario
+     *
+     * @return void
+     */
+    public static function getDefaultMenuFooter()
+    {
+        /*
+        return  [ 
+            ['type' => 0, 'text' => 'Inicio'],
+            ['type' => 5, 'text' => 'Menú Principal']
+        ];*/ 
+        return [
+            ["type"=>4,"text"=>"MI CUENTA","elements"=>[
+                ["text"=>"Inicio","category"=>null,"link"=>"/","newPage"=>false],
+                ["text"=>"Contacta","category"=>null,"link"=>"/contact","newPage"=>false],
+                ["text"=>"Mi Cuenta","category"=>null,"link"=>"/auth/login","newPage"=>false]
+            ]
+            ],
+
+            ["type"=>4,"text"=>"ENLACES PRINCIPALES","elements"=>[
+                ["text"=>"Términos y condiciones","category"=>null,"link"=>"/page/terms-and-conditions","newPage"=>false],
+                ["text"=>"Política de privacidad y cookies","category"=>null,"link"=>"/page/privacity-policy-cookies","newPage"=>false]
+            ]
+            ]
+            ];      
+   }
 }

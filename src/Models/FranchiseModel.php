@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Buscocomercio\Core\CallAppointmentModel;
 use Buscocomercio\Core\FranchiseServicesModel;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Buscocomercio\Core\FranchiseModel;
 
 class FranchiseModel extends Model
 {
@@ -44,7 +45,19 @@ class FranchiseModel extends Model
     protected $hidden = [
         'id', 'created_at', 'updated_at', 'deleted_at',
     ];
-
+    /**
+     * Settings FranchiseCustomModel == All data where franchiseId
+     *
+     * @var array
+     */
+    static protected $settings;
+    
+    /**
+     * Services FranchiseServicesModel == All data where franchiseId
+     *
+     * @var array
+     */
+    static protected $services;
     /**
      * Método para obtener el logo de la franquicia
      *
@@ -129,9 +142,9 @@ class FranchiseModel extends Model
             //info('FranchiseModel:: entro por dominio sin sesión la busco y la guardo->'.session('franchise'));
             return $franchise;
         } else {
-            $franchise = FranchiseModel::where('code', str_replace('.tutienda.com.es', '', FranchiseModel::getDomain()))->first();
+            $franchise = FranchiseModel::where('id', str_replace('.buscocomercio.com.es', '', FranchiseModel::getDomain()))->first();
             session()->put('franchise', $franchise);
-            //info('FranchiseModel:: entro por código sin sesión la busco y la guardo->'.session('franchise'));            
+            info('FranchiseModel:: entro por código sin sesión la busco y la guardo->'.session('franchise'));            
             return $franchise;
         }
         
@@ -206,20 +219,26 @@ class FranchiseModel extends Model
      * @author Soporte <soporte@buscocomercio.com>
      * @return void
      */
-    public function getCustom($data = null)
-    {
-        if (!empty(auth()->user()->franchise)) {
-            $id = auth()->user()->franchise;
-        } else {
-            $id = FranchiseModel::getFranchise()->id;
-        }
+    public static function getCustom($key = null)
+    {      
+        
         try {
-            $franchise = FranchiseCustomModel::where('franchise', $id)->where('var', $data)->first();
-            return $franchise->value;
+            
+            if (empty(self::$settings)) {
+                self::$settings = FranchiseCustomModel::where('franchise', FranchiseModel::getFranchise()->id)->get()->pluck("value", "var");                
+            }
+
+            if($key !== null && isset(self::$settings[ $key ])) {
+                return self::$settings[ $key ];
+            }
+
+            return null;
+
         } catch (\Exception $e) {
             // report($e);
             return null;
         }
+
     }
     
     /**
@@ -229,21 +248,16 @@ class FranchiseModel extends Model
      * @author Soporte <soporte@buscocomercio.com>
      * @param string $var
      * @param string $default
-     * @return void
+     * @return string
      */
     public static function custom($var, $default = null)
-    {
+    {        
         try {
-            $franchise = new FranchiseModel();
-            $var_custom = $franchise->getCustom($var);
-            if ($var_custom != null) {
-                return $var_custom;
-            } else {
-                return $default;
-            }
+            $custom = FranchiseModel::getCustom($var);
+            return ($custom != null) ? $custom : $default;
         } catch (\Exception $e) {
             return $default;
-        }
+        }      
     }
     /**
      * Función para obtener las servicios perosnalizadas de la franquicia
@@ -252,21 +266,15 @@ class FranchiseModel extends Model
      * @author 
      * @return void
      */
-    public function getServices($data = null)
+    public static function getServices($data = null)
     {
-        if (!empty(auth()->user()->franchise)) {
-            $id = auth()->user()->franchise;
-        } else {
-            $id = FranchiseModel::getFranchise()->id;
+        if (empty(self::$services)) {
+            self::$services = FranchiseServicesModel::where('franchise', FranchiseModel::getFranchise()->id)->get()->pluck("value", "service");
         }
-        try {
-            //info('id_franquicia->'.$id .' servicio->'.$data);
-            $franchise = FranchiseServicesModel::where('franchise', $id)->where('service', $data)->first();
-            return $franchise->value;
-        } catch (\Exception $e) {
-            // report($e);
-            return null;
+        if($data !== null && isset(self::$services[ $data ])) {
+            return self::$services[ $data ];
         }
+        return null;
     }
     /**
      * Método para obtener servicios de la franquicia
@@ -280,15 +288,11 @@ class FranchiseModel extends Model
     public static function services($var, $default = null)
     {
         try {
-            $franchise = new FranchiseModel();
-            if ($franchise->getServices($var) != null) {
-                return $franchise->getServices($var);
-            } else {
-                return $default;
-            }
+            $service = FranchiseModel::getServices($var);
+            return ($service != null) ? $service : $default;
         } catch (\Exception $e) {
             return $default;
-        }
+        }      
     }
     /**
      * Función para obtener las citas telefonicas de la franquicia

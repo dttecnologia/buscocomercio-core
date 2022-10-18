@@ -44,6 +44,22 @@ class ProductProviderModel extends Model
     ];
 
     /**
+     *  Relationship brand hasOne
+     */
+    public function __product()
+    {
+        return $this->hasOne(ProductModel::class, 'id', 'product');
+    }
+
+    /**
+     *  Relationship brand hasOne
+     */
+    public function __provider()
+    {
+        return $this->hasOne(ProviderModel::class, 'id', 'provider');
+    }
+
+    /**
      * The "booting" method of the model.
      *
      * @return void

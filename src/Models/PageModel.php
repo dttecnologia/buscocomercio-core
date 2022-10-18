@@ -47,7 +47,7 @@ class PageModel extends Model
      *
      * @return array
      */
-    public function sluggable()
+    public function sluggable(): array
     {
         return [
             'slug' => [
@@ -55,6 +55,30 @@ class PageModel extends Model
             ]
         ];
     }
+
+    /**
+     * The "booting" method of the model.
+     *
+     * @return void
+     * @author Aaron <aaron@devuelving.com>
+     */
+    public static function boot()
+    {
+        parent::boot();
+       
+        static::registerModelEvent('slugging', static function($model) {
+            if(empty(request("flag_update"))) {
+                info('Page slugging: ' . $model->id . ' -> ' . $model->name);
+            } else {
+                return false;
+            }
+        });
+        
+        static::registerModelEvent('slugged', static function($model) {
+            info('Page slugged: ' . $model->slug);
+        });
+    }
+
     /**
      * Función para reemplazar los shorcodes del contenido
      *
@@ -63,7 +87,12 @@ class PageModel extends Model
     public function getContent()
     {
         $return = $this->content;
-        $return = str_replace('[nombre_tienda]', strtoupper(FranchiseModel::getFranchise()->name), $return);
+        
+        foreach (json_decode(FranchiseModel::getFranchise()->contact_data, true) as $key => $value) {
+            $return = str_replace('[' . $key . ']', $value, $return);
+        }
+        return $return;
+        
         if (FranchiseModel::getFranchise()->type == 0){
             $return = str_replace('[shop_data]', $this->getDefaultData(), $return);
             $return = str_replace('[myshop_terms]', $this->getDefaultTerms(), $return);

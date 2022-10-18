@@ -2,6 +2,7 @@
 
 namespace Buscocomercio\Core;
 
+use App\Product;
 use Carbon\Carbon;
 use Buscocomercio\Core\TaxModel;
 use Buscocomercio\Core\BrandModel;
@@ -19,6 +20,8 @@ use Buscocomercio\Core\ProductCategoryModel;
 use Buscocomercio\Core\ProductProviderModel;
 use Cviebrock\EloquentSluggable\Sluggable;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Database\Eloquent\Builder;
+use Cviebrock\EloquentSluggable\Services\SlugService;
 
 class ProductModel extends Model
 {
@@ -45,7 +48,7 @@ class ProductModel extends Model
      * @var array
      */
     protected $fillable = [
-        'slug', 'name', 'description', 'stock_type', 'minimum_stock', 'transport', 'weight', 'volume', 'tax', 'brand', 'tags', 'variations', 'franchise', 'promotion', 'free_shipping', 'double_unit', 'units_limit', 'liquidation', 'unavailable', 'discontinued', 'external_sale', 'highlight', 'price_edit', 'shipping_canarias', 'cost_price', 'recommended_price', 'default_price', 'profit_margin', 'franchise_profit_margin', 'price_rules', 'meta_title', 'meta_description', 'meta_keywords', 'net_quantity', 'unit'
+        'slug', 'name', 'description', 'stock_type', 'minimum_stock', 'transport', 'weight', 'volume', 'tax', 'brand', 'category', 'tags', 'variations', 'franchise', 'promotion', 'free_shipping', 'double_unit', 'units_limit', 'liquidation', 'unavailable', 'discontinued', 'external_sale', 'highlight', 'price_edit', 'shipping_canarias', 'cost_price', 'recommended_price', 'default_price', 'profit_margin', 'franchise_profit_margin', 'price_rules', 'meta_title', 'meta_description', 'meta_keywords', 'net_quantity', 'unit', 'stock', 'provider', 'ean', 'provider_ref'
     ];
 
     /**
@@ -54,7 +57,7 @@ class ProductModel extends Model
      * @var array
      */
     protected $hidden = [
-        'created_at', 'updated_at', 'deleted_at',
+        'created_at', 'updated_at', 'deleted_at'
     ];
 
     /**
@@ -62,15 +65,21 @@ class ProductModel extends Model
      *
      * @return array
      */
-    public function sluggable()
+    public function sluggable(): array
     {
         return [
             'slug' => [
-                'source' => 'name'
+                'source' => 'name',
+                'unique' => true,
+                'onUpdate' => true,
+                'maxLength' => 191,
             ]
         ];
     }
-
+    
+    public function scopeWithUniqueSlugConstraints(Builder $query, Model $model, $attribute, $config, $slug) {
+        return $query->where('franchise', FranchiseModel::getFranchise()->id);
+    }
     /**
      *  Relationship brand hasOne
      */
@@ -92,6 +101,15 @@ class ProductModel extends Model
     {
         return $this->hasMany('Buscocomercio\Core\ProductProviderModel', 'product', 'id');
     }
+
+    /**
+     *  Relationship brand hasOne
+     */
+    public function __provider()
+    {
+        return $this->belongsTo(ProviderModel::class, 'provider', 'id');
+    }
+
     /**
      * Relationship product image hasOne
      */
@@ -167,6 +185,18 @@ class ProductModel extends Model
                     $productStatusUpdate->save();
                 }
             }
+        });
+        
+        static::registerModelEvent('slugging', static function($model) {
+            if(empty(request("id")) || !empty(request("id")) && request("update_slug") === "true") {
+                info('Product slugging: ' . $model->id . ' -> ' . $model->name);
+            } else {
+                return false;
+            }
+        });
+        
+        static::registerModelEvent('slugged', static function($model) {
+            //info('Category slugged: ' . $model->slug);
         });
     }
 
@@ -338,9 +368,6 @@ class ProductModel extends Model
 
     /**
      * Función para obtener los ean del producto
-     *
-     * @since 3.0.0
-     * @author David Cortés <david@devuelving.com>
      * @return array
      * @param $productProviders ProductProviderModel Parametro para controlar si viene del toArray en el frontend
      */
@@ -414,7 +441,9 @@ class ProductModel extends Model
      */
     public function getProvider($cheapest = false, $variation = null)
     {
-        return $this->getProductProvider($cheapest, $variation)->getProvider($cheapest, $variation);
+        $provider_product = ProviderModel::find($this->provider);
+        return $provider_product;
+        //return $this->getProductProvider($cheapest, $variation)->__provider;
     }
 
     /**
@@ -438,18 +467,18 @@ class ProductModel extends Model
                 } else {
                     $rule = 'asc';
                 }
-                $productProvider = ProductProviderModel::join('provider', 'product_provider.provider', '=', 'provider.id');
-                $productProvider->where('product_provider.product', $this->id);
+                $productProvider = ProductModel::join('provider', 'product.provider', '=', 'provider.id');
+                $productProvider->where('product.id', $this->id);
                 $productProvider->where('provider.active', 1);
-                if ($variation != null && ProductProviderModel::where('product', $this->id)->where('variation', $variation)->exists()) {
-                    $productProvider->where('product_provider.variation', $variation);
+                if ($variation != null && ProductModel::where('id', $this->id)->where('variations', $variation)->exists()) {
+                    $productProvider->where('product.variations', $variation);
                 } else {
                     //$productProvider->where('product_provider.variation', 0);
-                    $productProvider->OrWhereNull('product_provider.variation');
+                    $productProvider->OrWhereNull('product.variations');
                 }                
                 
-                $productProvider->orderBy('product_provider.cost_price', $rule);
-                $productProvider->select('product_provider.*', 'provider.name');
+                //$productProvider->orderBy('product_provider.cost_price', $rule);
+                $productProvider->select('product.*', 'provider.name');
                 $productProvider = $productProvider->first();
             } else {
                 if (!$cheapest) {
@@ -457,13 +486,13 @@ class ProductModel extends Model
                 } else {
                     $rule = 'asc';
                 }
-                $productProvider = ProductProviderModel::where('product', $this->id);
-                if ($variation != null && ProductProviderModel::where('product', $this->id)->where('variation', $variation)->exists()) {
-                    $productProvider->where('variation', $variation);
+                $productProvider = ProductModel::where('id', $this->id);
+                if ($variation != null && ProductModel::where('id', $this->id)->where('variations', $variation)->exists()) {
+                    $productProvider->where('variations', $variation);
                 } else {
-                    $productProvider->whereNull('variation');
+                    $productProvider->whereNull('variations');
                 }
-                $productProvider->orderBy('cost_price', $rule);
+                //$productProvider->orderBy('cost_price', $rule);
                 $productProvider = $productProvider->first();
             }
             return $productProvider;
@@ -503,7 +532,7 @@ class ProductModel extends Model
      */
     public function getPublicPriceCost($tax = true, $variation = null)
     {
-        $discount = $this->getDiscountTarget();
+        $discount = 1; //$this->getDiscountTarget(); 01/07/22 Siscu: cancelo esta llamada
         if ($variation == null) {
             $cost_price = $this->cost_price;
         } else {
@@ -543,7 +572,7 @@ class ProductModel extends Model
                             }
                             // Comprobamos si el descuento es de tipo 2, lo que significa que se aplica un descuento por proveedor
                         } else if ($discountTarget->type == 2) {
-                            if (in_array($this->getProvider()->id, $target)) {
+                            if (in_array($this->provider, $target)) {
                                 $discount = 1 - ($discountTarget->discount / 100);
                             }
                         }
@@ -618,9 +647,6 @@ class ProductModel extends Model
 
     /**
      * Función para obtener el precio recomendado
-     *
-     * @since 3.0.0
-     * @author David Cortés <david@devuelving.com>
      * @return void
      */
     public function getRecommendedPrice($variation = null)
@@ -673,14 +699,11 @@ class ProductModel extends Model
 
     /**
      * Función para comprobar si el producto esta en promocion
-     *
-     * @since 3.0.0
-     * @author David Cortés <david@devuelving.com>
-     * @return boolean
-     * @param $productCustom ProductCustomModel Parametro para controlar si viene del toArray en el frontend
+     *    
      */
     public function checkPromotion($productCustom = null)
     {
+        /* 27/09/22 Siscu: ja no utilizem customs
         if ($productCustom == null)
             $productCustom = ProductCustomModel::where('franchise', FranchiseModel::getFranchise()->id)->where('product', $this->id)->whereNotNull('promotion');
         else
@@ -690,7 +713,8 @@ class ProductModel extends Model
             return false;
         } else {
             return true;
-        }
+        }**/
+        return $this->promotion;
     }
     /**
      * Función para comprobar si el producto se envia a Canarias
@@ -791,7 +815,9 @@ class ProductModel extends Model
      */
     public function getCategories()
     {
-        return ProductCategoryModel::where('product', $this->id)->get();
+        /**Siscu: 22/7/22 De momento, sólo una categoria  */
+        return $this->category;
+        //return ProductCategoryModel::where('product', $this->id)->get();
     }
 
     /**
@@ -835,9 +861,6 @@ class ProductModel extends Model
 
     /**
      * Función para obtener el descuento entre el precio de venta y el PVPR
-     *
-     * @since 3.0.0
-     * @author David Cortés <david@devuelving.com>
      * @return void
      */
     public function getPublicMarginProfit($variation = null)
@@ -845,7 +868,11 @@ class ProductModel extends Model
         try {
             $publicPrice = $this->getPrice($variation);
             $recommendedPrice = $this->getRecommendedPrice($variation);
-            return round((($recommendedPrice - $publicPrice) / $recommendedPrice) * 100);
+            if($recommendedPrice && $recommendedPrice > 0){
+                return round((($recommendedPrice - $publicPrice) / $recommendedPrice) * 100);
+            }else{
+                return 0;
+            }
         } catch (\Exception $e) {
             // report($e);
             return 0;
@@ -981,6 +1008,7 @@ class ProductModel extends Model
      */
     public function getName($productCustom = null)
     {
+        /* 27/09/22 Siscu: ja no utilizem customs
         if ($productCustom == null)
             $productCustom = ProductCustomModel::where('franchise', FranchiseModel::getFranchise()->id)->where('product', $this->id);
 
@@ -993,19 +1021,17 @@ class ProductModel extends Model
             } else {
                 return $this->name;
             }
-        }
+        }*/
+        return $this->name;
     }
 
     /**
      * Función para obtener la descripción del producto segun la franquicia
-     *
-     * @since 3.0.0
-     * @author David Cortés <david@devuelving.com>
-     * @return void
-     * @param $productCustom ProductCustomModel Parametro para controlar si viene del toArray en el frontend
+     *    
      */
     public function getDescription($productCustom = null)
     {
+        /* 27/09/22 Siscu: ja no utilizem custom
         if ($productCustom == null)
             $productCustom = ProductCustomModel::where('franchise', FranchiseModel::getFranchise()->id)->where('product', $this->id);
 
@@ -1018,7 +1044,8 @@ class ProductModel extends Model
             } else {
                 return $this->description;
             }
-        }
+        }*/
+        return $this->description;
     }
 
     /**
@@ -1085,9 +1112,6 @@ class ProductModel extends Model
 
     /**
      * Devuelve stock actual, true si no mantenemos stock o false si está agotado.
-     *
-     * @since 3.0.0
-     * @author Aaron Bujalance <aaron@devuelving.com>
      * @return boolean
      */
     public function getStock($order = 0, $variation = null)
@@ -1099,7 +1123,18 @@ class ProductModel extends Model
                 $stock = $additions - $subtractions;
                 if ($stock < 0) $stock = 0;
                 return $stock;
+            } else if ($this->stock_type == 2) {
+                return true;
             } else if ($this->stock_type == 3) {
+                if($variation){
+                    $stock = ProductVariationModel::find($variation)->stock;
+                }else{
+                    $stock = $this->stock;
+                }
+            	$stock = $this->stock;//$this->getProductProvider(false, $variation)->stock;
+                return $stock;
+                /**Siscu: 22/07/22 reservas canceladas */
+                /*
                 $stock = $this->getProductProvider(false, $variation)->stock;
                 $date = Carbon::now()->subDays(2)->toDateString();
                 $reserved = OrderDetailModel::join('orders', 'order_details.order', '=', 'orders.id')
@@ -1113,7 +1148,11 @@ class ProductModel extends Model
                     $query->orWhereNotNull('orders.payment_date');
                     $query->orWhere('orders.status', 2);
                 });
-                return $stock - ($reserved->sum('order_details.units'));
+                
+                return $stock - ($reserved->sum('order_details.units')); */
+
+
+
             } else if ($this->stock_type == 4) {
                 return $this->getProductProvider(false, $variation)->stock;
             } else {
@@ -1149,7 +1188,7 @@ class ProductModel extends Model
      */
     public function visibleDiscounts()
     {
-        if (((FranchiseModel::get('type') == 0) && ($this->getPublicMarginProfit() < 25)) || ((!(bool) FranchiseModel::custom('visible_discounts', true)) || ($this->getPublicMarginProfit() < 5))) {
+        if (!(bool) FranchiseModel::custom('visible_discounts', true) || !$this->getPublicMarginProfit() || $this->getPublicMarginProfit() < 5){
             return false;
         } else {
             return true;
@@ -1205,7 +1244,12 @@ class ProductModel extends Model
             }
             // info(print_r($variation, true));
         }
-        $this->variations = json_encode($resultArray);
+
+        if(count($resultArray) > 0) {
+            $this->variations = json_encode($resultArray);
+        } else {
+            $this->variations = NULL;
+        }        
     }
 
 
