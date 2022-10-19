@@ -37,4 +37,27 @@ class AdminModel extends Model
     protected $hidden = [
         'password', 'remember_token', 'created_at', 'updated_at',
     ];
+    
+    /**
+     * 
+     *
+     * @since
+     * @author
+     * @return Array
+     */
+    public function children()
+    {
+        return $this->hasMany(AdminModel::class, 'headquarter', 'id')->with(['children']);
+    }
+    /**
+     * 
+     *
+     * @since
+     * @author
+     * @return Array
+     */
+    public function allChildren()
+    {
+        return $this->children()->with(['allChildren']);
+    }
 }
