@@ -51,8 +51,9 @@ class MenuModel
             ],
 
             ["type"=>4,"text"=>"ENLACES PRINCIPALES","elements"=>[
-                ["text"=>"Términos y condiciones","category"=>null,"link"=>"/page/terms-and-conditions","newPage"=>false],
-                ["text"=>"Política de privacidad y cookies","category"=>null,"link"=>"/page/privacity-policy-cookies","newPage"=>false]
+                ["text"=>"Aviso Legal","category"=>null,"link"=>"/pagina/aviso-legal","newPage"=>false],
+                ["text"=>"Política de privacidad","category"=>null,"link"=>"/pagina/politica-de-privacidad","newPage"=>false],
+                ["text"=>"Política de cookies","category"=>null,"link"=>"/pagina/politica-de-cookies","newPage"=>false]
             ]
             ]
             ];      

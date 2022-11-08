@@ -144,7 +144,7 @@ con número de CIF B-64503238.</p><br>';
                         <td style="padding:10px;">
                         <u>Datos identificativos de BUSCOCOMERCIO</u><br /><br />
                         <strong>Identidad:</strong>DT TECNOLOGÍA 2007, S.L.<br />
-                        <strong>C.I.F.:</strong> B-64503238<br />
+                        <strong>C.I.F.:</strong>B-64503238<br />
                         <strong>Dirección postal:</strong> Ronda Ibérica nº13 nave B3, C.P 08800, Vilanova i la Geltrú (Barcelona, España)<br />
                         <strong>Correo electrónico:</strong> info@BUSCOCOMERCIO.com .<br />
                         </td>
